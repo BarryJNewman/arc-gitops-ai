@@ -46,11 +46,13 @@ spec:
       requests:
         storage: 200Gi
 ---
-# DataVolume: Security Onion ISO — uploaded via virtctl or CDI upload proxy
-# This DataVolume uses a blank source as a placeholder.
-# After applying, upload the ISO with:
-#   virtctl image-upload dv securityonion-iso -n kubevirt-vms \
-#     --size 16Gi --image-path ./securityonion-2.4.210-20260302.iso --insecure
+# DataVolume: Security Onion ISO
+# The ISO can be pre-populated two ways:
+#   1. USB cache: make-usb.sh injects the ISO, rke2-arc-setup.sh copies it
+#      to /opt/kubevirt-storage/securityonion-iso/disk.img before CDI starts
+#   2. Manual upload after deploy:
+#      virtctl image-upload dv securityonion-iso -n kubevirt-vms \
+#        --size 16Gi --image-path ./securityonion-2.4.210-20260302.iso --insecure
 apiVersion: cdi.kubevirt.io/v1beta1
 kind: DataVolume
 metadata:
