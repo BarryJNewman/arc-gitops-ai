@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dify
+  namespace: dify
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dify.darkoverlay.com
+      secretName: darkoverlay-tls
+  rules:
+    - host: dify.darkoverlay.com
+      http:
+        paths:
+          # API routes
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+          - path: /console/api
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+          - path: /files
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-api
+                port:
+                  number: 5001
+          # Web frontend (catch-all)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dify-web
+                port:
+                  number: 3000

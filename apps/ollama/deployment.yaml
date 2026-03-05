@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      runtimeClassName: nvidia
+      volumes:
+        - name: ollama-data
+          hostPath:
+            path: /var/lib/ollama
+            type: DirectoryOrCreate
+      initContainers:
+        - name: model-pull
+          image: ollama/ollama:latest
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0"
+          volumeMounts:
+            - mountPath: /root/.ollama
+              name: ollama-data
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Install curl and jq (not in minimal ollama image)
+              apt-get update -qq && apt-get install -y -qq curl jq >/dev/null 2>&1
+
+              # Install llmfit — hardware-aware model recommender
+              curl -fsSL https://llmfit.axjns.dev/install.sh | sh -s -- --local
+              export PATH="$HOME/.local/bin:$PATH"
+
+              # Start Ollama server in background for model pulls
+              ollama serve &
+              OLLAMA_PID=$!
+              sleep 5
+
+              # Always pull a baseline embedding model
+              echo ">>> Pulling baseline embedding model..."
+              ollama pull nomic-embed-text
+
+              # Use llmfit to find best-fit models for this GPU
+              echo ">>> Running llmfit to detect hardware and recommend models..."
+              FITS=$(llmfit recommend --json --limit 10 2>/dev/null || echo '{"models":[]}')
+              echo ">>> llmfit raw output (first 500 chars): $(echo "$FITS" | head -c 500)"
+
+              # HuggingFace name → Ollama name mapping
+              # llmfit uses HF names; map the common ones to Ollama registry names
+              hf_to_ollama() {
+                local hf="$1"
+                case "$hf" in
+                  *Qwen3-Coder*30B*A3B*|*qwen3-coder*30b*a3b*) echo "qwen3-coder:30b-a3b" ;;
+                  *Qwen3-Coder*8B*|*qwen3-coder*8b*) echo "qwen3-coder:8b" ;;
+                  *Qwen3-Coder*14B*|*qwen3-coder*14b*) echo "qwen3-coder:14b" ;;
+                  *Qwen3-Coder*32B*|*qwen3-coder*32b*) echo "qwen3-coder:32b" ;;
+                  *Qwen2.5-Coder*32B*|*qwen2.5-coder*32b*) echo "qwen2.5-coder:32b" ;;
+                  *Qwen2.5-Coder*14B*|*qwen2.5-coder*14b*) echo "qwen2.5-coder:14b" ;;
+                  *Qwen2.5-Coder*7B*|*qwen2.5-coder*7b*) echo "qwen2.5-coder:7b" ;;
+                  *Qwen3-30B*A3B*|*qwen3*30b*a3b*) echo "qwen3:30b-a3b" ;;
+                  *Qwen3-32B*|*qwen3*32b*) echo "qwen3:32b" ;;
+                  *Qwen3-14B*|*qwen3*14b*) echo "qwen3:14b" ;;
+                  *Qwen3-8B*|*qwen3*8b*) echo "qwen3:8b" ;;
+                  *Qwen3-4B*|*qwen3*4b*) echo "qwen3:4b" ;;
+                  *Qwen2.5*72B*Instruct*) echo "qwen2.5:72b" ;;
+                  *Qwen2.5*32B*Instruct*) echo "qwen2.5:32b" ;;
+                  *Qwen2.5*14B*Instruct*) echo "qwen2.5:14b" ;;
+                  *Qwen2.5*7B*Instruct*) echo "qwen2.5:7b" ;;
+                  *Llama-4-Scout*) echo "llama4-scout" ;;
+                  *Llama-4-Maverick*) echo "llama4-maverick" ;;
+                  *Llama-3.3*70B*) echo "llama3.3:70b" ;;
+                  *Llama-3.1*70B*) echo "llama3.1:70b" ;;
+                  *Llama-3.1*8B*) echo "llama3.1:8b" ;;
+                  *Llama-3.2*3B*) echo "llama3.2:3b" ;;
+                  *Llama-3.2*1B*) echo "llama3.2:1b" ;;
+                  *Mixtral*8x7B*) echo "mixtral:8x7b" ;;
+                  *Mixtral*8x22B*) echo "mixtral:8x22b" ;;
+                  *Mistral*7B*Instruct*) echo "mistral:7b" ;;
+                  *Mistral*Nemo*) echo "mistral-nemo" ;;
+                  *Mistral*Small*) echo "mistral-small" ;;
+                  *DeepSeek-R1-0528*) echo "deepseek-r1:latest" ;;
+                  *DeepSeek-R1*) echo "deepseek-r1:latest" ;;
+                  *DeepSeek-V3*) echo "deepseek-v3:latest" ;;
+                  *DeepSeek-V2.5*) echo "deepseek-v2.5:latest" ;;
+                  *deepseek-coder-v2*) echo "deepseek-coder-v2:latest" ;;
+                  *CodeLlama*34B*) echo "codellama:34b" ;;
+                  *CodeLlama*13B*) echo "codellama:13b" ;;
+                  *CodeLlama*7B*) echo "codellama:7b" ;;
+                  *Gemma-3*27B*) echo "gemma3:27b" ;;
+                  *Gemma-3*12B*) echo "gemma3:12b" ;;
+                  *Gemma-3*4B*) echo "gemma3:4b" ;;
+                  *Gemma-2*27B*) echo "gemma2:27b" ;;
+                  *Gemma-2*9B*) echo "gemma2:9b" ;;
+                  *Phi-4*) echo "phi4:latest" ;;
+                  *Phi-3*medium*) echo "phi3:medium" ;;
+                  *Phi-3*mini*) echo "phi3:mini" ;;
+                  *) echo "" ;;
+                esac
+              }
+
+              # Extract model names from llmfit JSON and pull via Ollama
+              # Filter for GPU run mode only (MoE models are too large for init pull)
+              PULL_COUNT=0
+              MAX_MODELS=2
+              PULLED_NAMES=""
+              for hf_name in $(echo "$FITS" | jq -r '.models[]? | select(.run_mode == "GPU") | .name' 2>/dev/null); do
+                [ "$PULL_COUNT" -ge "$MAX_MODELS" ] && break
+                ollama_name=$(hf_to_ollama "$hf_name")
+                if [ -n "$ollama_name" ]; then
+                  # Deduplicate — multiple HF variants can map to the same Ollama model
+                  echo "$PULLED_NAMES" | grep -qF "$ollama_name" && { echo ">>> Skipping duplicate: $ollama_name"; continue; }
+                  echo ">>> Mapped: $hf_name -> $ollama_name"
+                  echo ">>> Pulling $ollama_name..."
+                  if ollama pull "$ollama_name"; then
+                    PULL_COUNT=$((PULL_COUNT + 1))
+                    PULLED_NAMES="$PULLED_NAMES $ollama_name"
+                  else
+                    echo "WARNING: Failed to pull $ollama_name"
+                  fi
+                else
+                  echo ">>> No Ollama mapping for: $hf_name (skipping)"
+                fi
+              done
+
+              # Fallback: if llmfit found nothing mappable, pull a safe default
+              if [ "$PULL_COUNT" -eq 0 ]; then
+                echo ">>> No llmfit recommendations pulled, falling back to default coding model..."
+                ollama pull qwen2.5-coder:14b || ollama pull qwen2.5-coder:7b || true
+              fi
+
+              echo ">>> Model pull complete. Installed models:"
+              ollama list
+
+              # Stop background server
+              kill $OLLAMA_PID 2>/dev/null || true
+              wait $OLLAMA_PID 2>/dev/null || true
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 24Gi
+            requests:
+              cpu: "1"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0"
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 24Gi
+            requests:
+              cpu: "1"
+              memory: 8Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - mountPath: /root/.ollama
+              name: ollama-data
+          startupProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            periodSeconds: 10

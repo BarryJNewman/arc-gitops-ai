@@ -1,0 +1,96 @@
+---
+# TLS Secret for *.darkoverlay.com wildcard certificate
+# Deploy manually (cert not stored in git):
+#   kubectl create secret tls darkoverlay-tls \
+#     --cert=darkoverlay/star_darkoverlay_com_bundle.crt \
+#     --key=darkoverlay/darkoverlay-com.key \
+#     -n <namespace>
+# Required in: kube-system (default-ssl-certificate), kubevirt, kubevirt-manager
+#
+# NGINX Ingress HelmChartConfig (applied separately):
+#   controller.extraArgs.default-ssl-certificate: kube-system/darkoverlay-tls
+#   controller.extraArgs.enable-ssl-passthrough: "true"
+---
+# Default route: darkoverlay.com -> Homer dashboard
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homer-ingress
+  namespace: kubevirt
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - darkoverlay.com
+        - "*.darkoverlay.com"
+      secretName: darkoverlay-tls
+  defaultBackend:
+    service:
+      name: homer
+      port:
+        number: 8080
+  rules:
+    - host: darkoverlay.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homer
+                port:
+                  number: 8080
+---
+# kubevirt.darkoverlay.com -> kubevirt-manager (with WebSocket for VNC)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubevirt-manager-ingress
+  namespace: kubevirt-manager
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - kubevirt.darkoverlay.com
+      secretName: darkoverlay-tls
+  rules:
+    - host: kubevirt.darkoverlay.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubevirt-manager
+                port:
+                  number: 8080
+---
+# tak.darkoverlay.com -> TAKServer (TLS passthrough for client cert mTLS)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: takserver-ingress
+  namespace: tak-server
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: tak.darkoverlay.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: takserver
+                port:
+                  number: 8443

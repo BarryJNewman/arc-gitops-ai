@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dify-redis
+  namespace: dify
+  labels:
+    app: dify-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dify-redis
+  template:
+    metadata:
+      labels:
+        app: dify-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ["--requirepass", "difyai123456", "--maxmemory", "256mb"]
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-a", "difyai123456", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "-a", "difyai123456", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/dify-redis
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dify-redis
+  namespace: dify
+spec:
+  selector:
+    app: dify-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

@@ -1,0 +1,52 @@
+---
+# kubevirt-manager — Web UI + noVNC console for KubeVirt
+# Source: https://github.com/kubevirt-manager/kubevirt-manager
+# The bundled.yaml is too large to vendor, so we install via Job
+# similar to the KubeVirt operator itself.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubevirt-manager-installer
+  namespace: kubevirt
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubevirt-manager-installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: kubevirt-manager-installer
+    namespace: kubevirt
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kubevirt-manager-install
+  namespace: kubevirt
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      serviceAccountName: kubevirt-manager-installer
+      restartPolicy: OnFailure
+      containers:
+        - name: install
+          image: alpine/k8s:1.31.4
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "=== Installing kubevirt-manager ==="
+              kubectl apply -f https://raw.githubusercontent.com/kubevirt-manager/kubevirt-manager/main/kubernetes/bundled.yaml
+
+              echo "=== Patching service to NodePort ==="
+              kubectl patch svc kubevirt-manager -n kubevirt-manager \
+                -p '{"spec":{"type":"NodePort"}}'
+
+              echo "=== Done ==="

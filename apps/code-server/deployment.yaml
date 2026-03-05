@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-server
+  namespace: code-server
+  labels:
+    app: code-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: code-server
+  template:
+    metadata:
+      labels:
+        app: code-server
+    spec:
+      initContainers:
+        - name: init-permissions
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 1000:1000 /home/coder
+          volumeMounts:
+            - name: data
+              mountPath: /home/coder
+        - name: install-azcli
+          image: codercom/code-server:latest
+          securityContext:
+            runAsUser: 0
+          command:
+            - bash
+            - -c
+            - |
+              if [ ! -f /opt/az/done ]; then
+                apt-get update -qq
+                apt-get install -y -qq ca-certificates curl apt-transport-https lsb-release gnupg >/dev/null 2>&1
+                mkdir -p /etc/apt/keyrings
+                curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg
+                chmod go+r /etc/apt/keyrings/microsoft.gpg
+                AZ_REPO=$(lsb_release -cs)
+                echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" > /etc/apt/sources.list.d/azure-cli.list
+                apt-get update -qq && apt-get install -y azure-cli 2>&1
+                touch /opt/az/done
+                echo 'Azure CLI installed successfully'
+                /opt/az/bin/python3 -Im azure.cli version 2>&1 || true
+              else
+                echo 'Azure CLI already installed, skipping'
+              fi
+          volumeMounts:
+            - name: azcli
+              mountPath: /opt/az
+        - name: install-tools
+          image: codercom/code-server:latest
+          command:
+            - sh
+            - -c
+            - |
+              # Remove Continue extension if present
+              code-server --uninstall-extension Continue.continue 2>/dev/null || true
+              rm -rf /home/coder/.continue
+
+              # Set dark mode (Azure-style theme)
+              mkdir -p /home/coder/.local/share/code-server/User
+              cat > /home/coder/.local/share/code-server/User/settings.json <<'SETEOF'
+              {
+                "workbench.colorTheme": "Default Dark Azure",
+                "workbench.iconTheme": "vs-seti",
+                "editor.fontSize": 14,
+                "terminal.integrated.fontSize": 14,
+                "window.autoDetectColorScheme": false,
+                "workbench.preferredDarkColorTheme": "Default Dark Azure"
+              }
+              SETEOF
+
+              # Install Node.js via nvm, then OpenCode + Azure CLI
+              if [ ! -d /home/coder/.nvm ]; then
+                curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash 2>&1
+              fi
+              export NVM_DIR=/home/coder/.nvm
+              . "$NVM_DIR/nvm.sh"
+              nvm install 22 2>&1 || true
+              npm install -g opencode-ai @azure/static-web-apps-cli azure-functions-core-tools 2>&1 || true
+
+
+              mkdir -p /home/coder/.local/bin
+              rm -f /home/coder/.local/bin/opencode /home/coder/.local/bin/az
+
+              # Azure CLI wrapper using bundled Python at /opt/az
+              printf '#!/bin/bash\nAZ_INSTALLER=DEB /opt/az/bin/python3 -Im azure.cli "$@"\n' > /home/coder/.local/bin/az
+              chmod +x /home/coder/.local/bin/az
+
+              # OpenCode config — custom LiteLLM provider
+              cat > /home/coder/.opencode.json <<'OCEOF'
+              {
+                "provider": {
+                  "litellm": {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "LiteLLM",
+                    "options": {
+                      "baseURL": "http://litellm.litellm.svc.cluster.local:4000/v1",
+                      "apiKey": "sk-litellm-master-key"
+                    },
+                    "models": {
+                      "gpt-5.1-codex": {
+                        "name": "GPT-5.1 Codex"
+                      },
+                      "qwen3-coder": {
+                        "name": "Qwen3 Coder (Local)"
+                      }
+                    }
+                  }
+                },
+                "agents": {
+                  "coder": {
+                    "model": "litellm.gpt-5.1-codex"
+                  },
+                  "task": {
+                    "model": "litellm.gpt-5.1-codex"
+                  },
+                  "title": {
+                    "model": "litellm.gpt-5.1-codex"
+                  }
+                }
+              }
+              OCEOF
+
+              # Ensure nvm + PATH in shell sessions
+              grep -q 'NVM_DIR' /home/coder/.bashrc 2>/dev/null || cat >> /home/coder/.bashrc <<'RCEOF'
+              export NVM_DIR="$HOME/.nvm"
+              [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+              RCEOF
+              grep -q '.local/bin' /home/coder/.bashrc 2>/dev/null || \
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/coder/.bashrc
+          volumeMounts:
+            - name: data
+              mountPath: /home/coder
+      containers:
+        - name: code-server
+          image: codercom/code-server:latest
+          args:
+            - --auth=password
+            - --app-name=Code Server
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: code-server-secrets
+                  key: PASSWORD
+            - name: LOCAL_ENDPOINT
+              value: "http://litellm.litellm.svc.cluster.local:4000/v1"
+          volumeMounts:
+            - name: data
+              mountPath: /home/coder
+            - name: secrets-store
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - name: azcli
+              mountPath: /opt/az
+              readOnly: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/code-server
+            type: DirectoryOrCreate
+        - name: azcli
+          hostPath:
+            path: /var/lib/code-server-azcli
+            type: DirectoryOrCreate
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: akv-code-server
+            nodePublishSecretRef:
+              name: secrets-store-creds

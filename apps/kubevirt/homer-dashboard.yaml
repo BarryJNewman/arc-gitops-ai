@@ -1,0 +1,209 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homer-config
+  namespace: kubevirt
+data:
+  config.yml: |
+    title: "Lab Dashboard"
+    subtitle: "azurelinux-iwnH9wJcn7QA"
+    logo: false
+    icon: "fas fa-server"
+    header: true
+    footer: false
+    columns: "3"
+    connectivityCheck: false
+
+    stylesheet:
+      - "assets/custom.css"
+
+    theme: default
+    colors:
+      light:
+        highlight-primary: "#3367d6"
+        highlight-secondary: "#4285f4"
+        highlight-hover: "#5a95f5"
+        background: "#f5f5f5"
+        card-background: "#ffffff"
+        text: "#363636"
+        text-header: "#ffffff"
+        text-title: "#303030"
+        text-subtitle: "#424242"
+        card-shadow: rgba(0, 0, 0, 0.1)
+        link: "#3273dc"
+        link-hover: "#363636"
+      dark:
+        highlight-primary: "#3367d6"
+        highlight-secondary: "#4285f4"
+        highlight-hover: "#5a95f5"
+        background: "#131313"
+        card-background: "#2b2b2b"
+        text: "#eaeaea"
+        text-header: "#ffffff"
+        text-title: "#fafafa"
+        text-subtitle: "#f5f5f5"
+        card-shadow: rgba(0, 0, 0, 0.4)
+        link: "#3273dc"
+        link-hover: "#ffdd57"
+
+    message:
+      style: "is-info"
+      title: "System Info"
+      icon: "fas fa-microchip"
+      content: >-
+        <b>CPU:</b> 24 cores &nbsp;|&nbsp;
+        <b>RAM:</b> 94 GB &nbsp;|&nbsp;
+        <b>GPU:</b> NVIDIA RTX 5090 Laptop (24 GB VRAM) &nbsp;|&nbsp;
+        <b>OS:</b> Azure Linux 3.0 &nbsp;|&nbsp;
+        <b>K8s:</b> RKE2
+
+    services:
+      - name: "Management"
+        icon: "fas fa-toolbox"
+        items:
+          - name: "KubeVirt Manager"
+            subtitle: "VM management + VNC console"
+            url: "https://kubevirt.darkoverlay.com"
+            icon: "fas fa-desktop"
+            tag: "kubevirt"
+            target: "_blank"
+
+          - name: "TAKServer Dashboard"
+            subtitle: "TAK situational awareness (requires client cert)"
+            url: "https://tak.darkoverlay.com"
+            icon: "fas fa-crosshairs"
+            tag: "tak"
+            target: "_blank"
+
+          - name: "Agent Zero"
+            subtitle: "AI agent framework"
+            url: "https://agent-zero.darkoverlay.com"
+            icon: "fas fa-robot"
+            tag: "ai"
+            target: "_blank"
+
+          - name: "Code Server"
+            subtitle: "VS Code in the browser"
+            url: "https://code.darkoverlay.com"
+            icon: "fas fa-code"
+            tag: "dev"
+            target: "_blank"
+
+          - name: "Neo4j"
+            subtitle: "Graph database browser"
+            url: "https://neo4j.darkoverlay.com"
+            icon: "fas fa-project-diagram"
+            tag: "data"
+            target: "_blank"
+
+          - name: "Dify"
+            subtitle: "LLMOps platform — agents, workflows, RAG"
+            url: "https://dify.darkoverlay.com"
+            icon: "fas fa-wand-magic-sparkles"
+            tag: "ai"
+            target: "_blank"
+
+          - name: "LiteLLM"
+            subtitle: "LLM proxy — model routing & fallback"
+            url: "https://litellm.darkoverlay.com"
+            icon: "fas fa-network-wired"
+            tag: "ai"
+            target: "_blank"
+
+      - name: "Virtual Machines"
+        icon: "fas fa-server"
+        items:
+          - name: "Windows DC01 (RDP)"
+            subtitle: "Server 2025 Core — lab.local DC — 192.168.0.125:31242"
+            url: "#"
+            icon: "fab fa-windows"
+            tag: "rdp"
+
+          - name: "Windows DC01 (VNC)"
+            subtitle: "Console via kubevirt-manager"
+            url: "https://kubevirt.darkoverlay.com/vmdetail/kubevirt-vms/windows"
+            icon: "fas fa-tv"
+            tag: "vnc"
+            target: "_blank"
+
+      - name: "Quick Reference"
+        icon: "fas fa-bookmark"
+        items:
+          - name: "Azure Key Vault"
+            subtitle: "Credentials stored in arc-onboard-kv"
+            url: "https://portal.azure.com/#@/resource/subscriptions/13479ff2-01be-4e57-ad52-1b89213e1d6a/resourceGroups/arc-onboard-rg/providers/Microsoft.KeyVault/vaults/arc-onboard-kv/secrets"
+            icon: "fas fa-key"
+            tag: "secrets"
+            target: "_blank"
+
+          - name: "Cluster Node"
+            subtitle: "SSH: packet@192.168.0.116"
+            url: "#"
+            icon: "fas fa-terminal"
+
+  custom.css: |
+    .message .media .media-content p {
+      font-size: 0.95rem;
+    }
+    .message .media .media-content p b {
+      color: #3367d6;
+    }
+    body.is-dark .message .media .media-content p b {
+      color: #5a95f5;
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homer
+  namespace: kubevirt
+  labels:
+    app: homer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: homer
+  template:
+    metadata:
+      labels:
+        app: homer
+    spec:
+      containers:
+        - name: homer
+          image: b4bz/homer:latest
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /www/assets/config.yml
+              subPath: config.yml
+            - name: config
+              mountPath: /www/assets/custom.css
+              subPath: custom.css
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: homer-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homer
+  namespace: kubevirt
+spec:
+  type: NodePort
+  selector:
+    app: homer
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080

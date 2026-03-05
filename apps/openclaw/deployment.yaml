@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app: openclaw
+spec:
+  replicas: 0  # set to 1 to enable
+  selector:
+    matchLabels:
+      app: openclaw
+  template:
+    metadata:
+      labels:
+        app: openclaw
+    spec:
+      containers:
+        - name: openclaw
+          image: node:22-slim
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export HOME=/home/openclaw
+              export OPENCLAW_HOME=/home/openclaw
+
+              # Install deps + openclaw (always needed — npm globals are ephemeral)
+              apt-get update -qq && apt-get install -y -qq curl git >/dev/null 2>&1
+              npm install -g openclaw 2>&1
+
+              # Setup remote gateway connection (non-interactive, idempotent)
+              openclaw onboard \
+                --non-interactive \
+                --accept-risk \
+                --mode remote \
+                --remote-url "https://missionbot.thepacketlab.com" \
+                --remote-token "1700e35a12c9b01fe05e88267309e72befa45ea5f4173e05" \
+                --skip-channels \
+                --skip-skills \
+                --skip-health \
+                --skip-ui \
+                --no-install-daemon 2>&1 || true
+
+              # Run gateway in foreground (connects to remote gateway)
+              exec openclaw gateway --allow-unconfigured --verbose
+          volumeMounts:
+            - name: data
+              mountPath: /home/openclaw
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/openclaw
+            type: DirectoryOrCreate

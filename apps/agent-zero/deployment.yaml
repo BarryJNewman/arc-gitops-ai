@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-zero
+  namespace: agent-zero
+  labels:
+    app: agent-zero
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-zero
+  template:
+    metadata:
+      labels:
+        app: agent-zero
+    spec:
+      containers:
+        - name: agent-zero
+          image: agent0ai/agent-zero:latest
+          ports:
+            - containerPort: 80
+          env:
+            # LiteLLM proxy — all models route through here
+            - name: OPENAI_API_KEY
+              value: "sk-litellm-master-key"
+            # Chat model — gpt-5.1-codex via LiteLLM (falls back to qwen3-coder)
+            - name: A0_SET_chat_model_provider
+              value: "openai"
+            - name: A0_SET_chat_model_name
+              value: "gpt-5.1-codex"
+            - name: A0_SET_chat_model_api_base
+              value: "http://litellm.litellm.svc.cluster.local:4000"
+            - name: A0_SET_chat_model_ctx_length
+              value: "128000"
+            # Utility model — gpt-5.1-codex via LiteLLM (falls back to qwen3-coder)
+            - name: A0_SET_util_model_provider
+              value: "openai"
+            - name: A0_SET_util_model_name
+              value: "gpt-5.1-codex"
+            - name: A0_SET_util_model_api_base
+              value: "http://litellm.litellm.svc.cluster.local:4000"
+            - name: A0_SET_util_model_ctx_length
+              value: "128000"
+            # Embedding model — nomic-embed-text direct to Ollama
+            - name: A0_SET_embed_model_provider
+              value: "ollama"
+            - name: A0_SET_embed_model_name
+              value: "nomic-embed-text"
+            - name: A0_SET_embed_model_api_base
+              value: "http://ollama.ollama.svc.cluster.local:11434"
+            # Browser model — gpt-5.1-codex via LiteLLM (falls back to qwen3-coder)
+            - name: A0_SET_browser_model_provider
+              value: "openai"
+            - name: A0_SET_browser_model_name
+              value: "gpt-5.1-codex"
+            - name: A0_SET_browser_model_api_base
+              value: "http://litellm.litellm.svc.cluster.local:4000"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10

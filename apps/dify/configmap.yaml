@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dify-config
+  namespace: dify
+data:
+  # === Core ===
+  SECRET_KEY: "CHANGEME-generate-a-random-secret-key"
+  DEPLOY_ENV: "PRODUCTION"
+  CONSOLE_API_URL: "https://dify.darkoverlay.com"
+  CONSOLE_WEB_URL: "https://dify.darkoverlay.com"
+  SERVICE_API_URL: "https://dify.darkoverlay.com"
+  APP_API_URL: "https://dify.darkoverlay.com"
+  APP_WEB_URL: "https://dify.darkoverlay.com"
+  FILES_URL: ""
+  MIGRATION_ENABLED: "true"
+  LOG_LEVEL: "INFO"
+  DEBUG: "false"
+
+  # === Database — reuse PGVector cluster ===
+  DB_TYPE: "postgresql"
+  DB_USERNAME: "postgres"
+  DB_HOST: "pgvector.pgvector.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_DATABASE: "dify"
+
+  # === Redis ===
+  REDIS_HOST: "dify-redis.dify.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: "difyai123456"
+  REDIS_DB: "0"
+  CELERY_BROKER_URL: "redis://:difyai123456@dify-redis.dify.svc.cluster.local:6379/1"
+
+  # === Vector Store — reuse PGVector ===
+  VECTOR_STORE: "pgvector"
+  PGVECTOR_HOST: "pgvector.pgvector.svc.cluster.local"
+  PGVECTOR_PORT: "5432"
+  PGVECTOR_USER: "postgres"
+  PGVECTOR_DATABASE: "dify"
+
+  # === Storage ===
+  STORAGE_TYPE: "opendal"
+  OPENDAL_SCHEME: "fs"
+  OPENDAL_FS_ROOT: "storage"
+
+  # === Sandbox ===
+  CODE_EXECUTION_ENDPOINT: "http://dify-sandbox.dify.svc.cluster.local:8194"
+  CODE_EXECUTION_API_KEY: "dify-sandbox-key"
+  CODE_MAX_NUMBER: "9999999999999"
+  CODE_MIN_NUMBER: "-9999999999999"
+  CODE_MAX_DEPTH: "5"
+  CODE_MAX_PRECISION: "20"
+  CODE_MAX_STRING_LENGTH: "80000"
+  CODE_MAX_STRING_ARRAY_LENGTH: "30"
+  CODE_MAX_OBJECT_ARRAY_LENGTH: "30"
+  CODE_MAX_NUMBER_ARRAY_LENGTH: "1000"
+  TEMPLATE_TRANSFORM_MAX_LENGTH: "80000"
+
+  # === Server ===
+  DIFY_PORT: "5001"
+  SERVER_WORKER_AMOUNT: "1"
+  GUNICORN_TIMEOUT: "360"
