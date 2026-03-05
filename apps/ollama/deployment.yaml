@@ -38,17 +38,28 @@ spec:
             - |
               set -e
 
+              # Start Ollama server in background for model pulls
+              ollama serve &
+              OLLAMA_PID=$!
+              sleep 5
+
+              # Check for pre-populated models (from --prepopulate-models build flag)
+              EXISTING_MODELS=$(ollama list 2>/dev/null | tail -n +2 | wc -l)
+              if [ "$EXISTING_MODELS" -gt 2 ]; then
+                echo ">>> Found ${EXISTING_MODELS} pre-populated models, skipping llmfit pull."
+                echo ">>> Installed models:"
+                ollama list
+                kill $OLLAMA_PID 2>/dev/null || true
+                wait $OLLAMA_PID 2>/dev/null || true
+                exit 0
+              fi
+
               # Install curl and jq (not in minimal ollama image)
               apt-get update -qq && apt-get install -y -qq curl jq >/dev/null 2>&1
 
               # Install llmfit — hardware-aware model recommender
               curl -fsSL https://llmfit.axjns.dev/install.sh | sh -s -- --local
               export PATH="$HOME/.local/bin:$PATH"
-
-              # Start Ollama server in background for model pulls
-              ollama serve &
-              OLLAMA_PID=$!
-              sleep 5
 
               # Always pull a baseline embedding model
               echo ">>> Pulling baseline embedding model..."
