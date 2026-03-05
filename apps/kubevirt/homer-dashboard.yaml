@@ -111,6 +111,13 @@ data:
             tag: "ai"
             target: "_blank"
 
+          - name: "Security Onion"
+            subtitle: "Network security monitoring + Onion AI"
+            url: "https://securityonion.darkoverlay.com"
+            icon: "fas fa-shield-halved"
+            tag: "security"
+            target: "_blank"
+
       - name: "Virtual Machines"
         icon: "fas fa-server"
         items:
@@ -124,6 +131,13 @@ data:
             subtitle: "Console via kubevirt-manager"
             url: "https://kubevirt.darkoverlay.com/vmdetail/kubevirt-vms/windows"
             icon: "fas fa-tv"
+            tag: "vnc"
+            target: "_blank"
+
+          - name: "Security Onion (VNC)"
+            subtitle: "Console via kubevirt-manager"
+            url: "https://kubevirt.darkoverlay.com/vmdetail/kubevirt-vms/securityonion"
+            icon: "fas fa-shield-halved"
             tag: "vnc"
             target: "_blank"
 
