@@ -75,6 +75,7 @@ spec:
               hf_to_ollama() {
                 local hf="$1"
                 case "$hf" in
+                  *Qwen3-Coder-Next*|*NexVeridian/Qwen3-Coder*) echo "qwen3-coder" ;;
                   *Qwen3-Coder*30B*A3B*|*qwen3-coder*30b*a3b*) echo "qwen3-coder:30b-a3b" ;;
                   *Qwen3-Coder*8B*|*qwen3-coder*8b*) echo "qwen3-coder:8b" ;;
                   *Qwen3-Coder*14B*|*qwen3-coder*14b*) echo "qwen3-coder:14b" ;;
@@ -124,11 +125,10 @@ spec:
               }
 
               # Extract model names from llmfit JSON and pull via Ollama
-              # Filter for GPU run mode only (MoE models are too large for init pull)
               PULL_COUNT=0
               MAX_MODELS=2
               PULLED_NAMES=""
-              for hf_name in $(echo "$FITS" | jq -r '.models[]? | select(.run_mode == "GPU") | .name' 2>/dev/null); do
+              for hf_name in $(echo "$FITS" | jq -r '.models[]? | .name' 2>/dev/null); do
                 [ "$PULL_COUNT" -ge "$MAX_MODELS" ] && break
                 ollama_name=$(hf_to_ollama "$hf_name")
                 if [ -n "$ollama_name" ]; then
