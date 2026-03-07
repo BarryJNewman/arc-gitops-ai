@@ -1,0 +1,30 @@
+---
+# ConfigMap containing SQL init scripts for docker-entrypoint-initdb.d.
+# These run ONCE when PGDATA is empty (first boot). Postgres skips them
+# when data already exists, so they are safe across restarts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgvector-init
+  namespace: pgvector
+data:
+  01-create-databases.sh: |
+    #!/bin/bash
+    set -e
+
+    # Create databases for all apps that share this PGVector instance.
+    # The default POSTGRES_DB (litellm) is created by the entrypoint itself.
+    for db in dify; do
+      echo "=== Creating database '$db' (if not exists) ==="
+      psql -v ON_ERROR_STOP=0 --username "$POSTGRES_USER" <<-SQL
+        SELECT 'CREATE DATABASE $db' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '$db')\gexec
+    SQL
+    done
+
+    # Enable pgvector extension in all databases that need it
+    for db in litellm dify; do
+      echo "=== Enabling vector extension in '$db' ==="
+      psql -v ON_ERROR_STOP=0 --username "$POSTGRES_USER" --dbname "$db" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+    done
+
+    echo "=== PGVector init complete ==="

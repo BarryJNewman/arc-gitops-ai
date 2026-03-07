@@ -37,6 +37,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
             - name: secrets-store
               mountPath: /mnt/secrets-store
               readOnly: true
@@ -68,6 +71,10 @@ spec:
           hostPath:
             path: /var/lib/pgvector
             type: DirectoryOrCreate
+        - name: initdb
+          configMap:
+            name: pgvector-init
+            defaultMode: 0755
         - name: secrets-store
           csi:
             driver: secrets-store.csi.k8s.io

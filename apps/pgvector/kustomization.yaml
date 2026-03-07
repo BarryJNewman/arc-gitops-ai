@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - secret-provider.yaml
+  - init-databases.yaml
   - deployment.yaml
   - service.yaml
