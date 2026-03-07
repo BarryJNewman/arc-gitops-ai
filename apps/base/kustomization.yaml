@@ -5,7 +5,6 @@ resources:
   - ../pgvector
   - ../litellm
   - ../agent-zero
-  - ../open-webui
   - ../code-server
   - ../neo4j
   - ../dify
