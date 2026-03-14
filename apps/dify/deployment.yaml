@@ -15,6 +15,13 @@ spec:
       labels:
         app: dify-api
     spec:
+      initContainers:
+        - name: fix-storage-perms
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 1001:1001 /storage"]
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
       containers:
         - name: api
           image: langgenius/dify-api:1.13.0
@@ -92,6 +99,13 @@ spec:
       labels:
         app: dify-worker
     spec:
+      initContainers:
+        - name: fix-storage-perms
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 1001:1001 /storage"]
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
       containers:
         - name: worker
           image: langgenius/dify-api:1.13.0
@@ -220,3 +234,103 @@ spec:
               port: 3000
             initialDelaySeconds: 10
             periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dify-plugin-daemon
+  namespace: dify
+  labels:
+    app: dify-plugin-daemon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dify-plugin-daemon
+  template:
+    metadata:
+      labels:
+        app: dify-plugin-daemon
+    spec:
+      initContainers:
+        - name: fix-storage-perms
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 1001:1001 /storage"]
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+      containers:
+        - name: plugin-daemon
+          image: langgenius/dify-plugin-daemon:0.5.3-local
+          env:
+            - name: DB_USERNAME
+              value: "postgres"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dify-secrets
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              value: "pgvector.pgvector.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_DATABASE
+              value: "dify_plugin"
+            - name: SERVER_PORT
+              value: "5002"
+            - name: SERVER_KEY
+              value: "lYkiYYT6owG-71oLerGzA7GXCgOT-6ovaezWAjpCjf-Sjc3ZtU-qUEi"
+            - name: DIFY_INNER_API_URL
+              value: "http://dify-api.dify.svc.cluster.local:5001"
+            - name: DIFY_INNER_API_KEY
+              value: "QaHbTe77CtuXmsfyhR7-vRjI-XbV1AaFy691iy-kGDv2Jvy0-eAh8Y1"
+            - name: PLUGIN_REMOTE_INSTALLING_HOST
+              value: "0.0.0.0"
+            - name: PLUGIN_REMOTE_INSTALLING_PORT
+              value: "5003"
+            - name: PLUGIN_WORKING_PATH
+              value: "/app/storage/cwd"
+            - name: FORCE_VERIFYING_SIGNATURE
+              value: "true"
+            - name: PYTHON_ENV_INIT_TIMEOUT
+              value: "120"
+            - name: PLUGIN_MAX_EXECUTION_TIMEOUT
+              value: "600"
+            - name: MAX_PLUGIN_PACKAGE_SIZE
+              value: "52428800"
+            - name: PLUGIN_STORAGE_TYPE
+              value: "local"
+            - name: PLUGIN_STORAGE_LOCAL_ROOT
+              value: "/app/storage"
+            - name: PLUGIN_INSTALLED_PATH
+              value: "plugin"
+            - name: PLUGIN_PACKAGE_CACHE_PATH
+              value: "plugin_packages"
+            - name: PLUGIN_MEDIA_CACHE_PATH
+              value: "assets"
+            - name: PPROF_ENABLED
+              value: "false"
+            - name: REDIS_HOST
+              value: "dify-redis.dify.svc.cluster.local"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: "difyai123456"
+          ports:
+            - containerPort: 5002
+            - containerPort: 5003
+          volumeMounts:
+            - name: storage
+              mountPath: /app/storage
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: storage
+          hostPath:
+            path: /var/lib/dify/storage
+            type: DirectoryOrCreate
