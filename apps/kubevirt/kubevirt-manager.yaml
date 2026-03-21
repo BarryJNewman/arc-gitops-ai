@@ -43,10 +43,10 @@ spec:
             - |
               set -e
               KBMGR_VERSION="v1.5.4"
-              echo "=== Installing kubevirt-manager ${KBMGR_VERSION} ==="
-              kubectl apply -f "https://raw.githubusercontent.com/kubevirt-manager/kubevirt-manager/${KBMGR_VERSION}/kubernetes/bundled.yaml"
+              echo "=== Installing kubevirt-manager $${KBMGR_VERSION} ==="
+              kubectl apply -f "https://raw.githubusercontent.com/kubevirt-manager/kubevirt-manager/$${KBMGR_VERSION}/kubernetes/bundled.yaml"
 
-              echo "=== Pinning image to ${KBMGR_VERSION} ==="
+              echo "=== Pinning image to $${KBMGR_VERSION} ==="
               kubectl set image deploy/kubevirt-manager -n kubevirt-manager \
                 kubevirtmgr=kubevirtmanager/kubevirt-manager:1.5.4
 

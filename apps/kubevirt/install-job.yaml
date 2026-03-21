@@ -45,17 +45,17 @@ spec:
               KUBEVIRT_VERSION="v1.7.1"
               CDI_VERSION="v1.62.0"
 
-              echo "=== Installing KubeVirt operator ${KUBEVIRT_VERSION} ==="
-              kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
+              echo "=== Installing KubeVirt operator $${KUBEVIRT_VERSION} ==="
+              kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/$${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
 
               echo "=== Creating KubeVirt CR ==="
-              kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
+              kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/$${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
 
-              echo "=== Installing CDI operator ${CDI_VERSION} ==="
-              kubectl apply -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-operator.yaml"
+              echo "=== Installing CDI operator $${CDI_VERSION} ==="
+              kubectl apply -f "https://github.com/kubevirt/containerized-data-importer/releases/download/$${CDI_VERSION}/cdi-operator.yaml"
 
               echo "=== Creating CDI CR ==="
-              kubectl apply -f "https://github.com/kubevirt/containerized-data-importer/releases/download/${CDI_VERSION}/cdi-cr.yaml"
+              kubectl apply -f "https://github.com/kubevirt/containerized-data-importer/releases/download/$${CDI_VERSION}/cdi-cr.yaml"
 
               echo "=== Waiting for KubeVirt to be ready ==="
               kubectl wait --for=condition=Available kubevirt/kubevirt -n kubevirt --timeout=300s || echo "WARNING: KubeVirt not ready yet (will converge)"

@@ -46,7 +46,7 @@ spec:
               # Check for pre-populated models (from --prepopulate-models build flag)
               EXISTING_MODELS=$(ollama list 2>/dev/null | tail -n +2 | wc -l)
               if [ "$EXISTING_MODELS" -gt 2 ]; then
-                echo ">>> Found ${EXISTING_MODELS} pre-populated models, skipping llmfit pull."
+                echo ">>> Found $${EXISTING_MODELS} pre-populated models, skipping llmfit pull."
                 echo ">>> Installed models:"
                 ollama list
                 kill $OLLAMA_PID 2>/dev/null || true
