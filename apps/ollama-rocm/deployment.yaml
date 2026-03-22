@@ -154,6 +154,24 @@ spec:
               echo ">>> Model pull complete. Installed models:"
               ollama list
 
+              # Create stable aliases so LiteLLM can reference a fixed name
+              # regardless of which hardware-specific model llmfit selected.
+              # Pick the largest non-embedding model as "local-chat".
+              CHAT_MODEL=$(ollama list 2>/dev/null | tail -n +2 \
+                | grep -iv 'nomic-embed\|local-chat\|local-code' \
+                | sort -k3 -h -r | head -1 | awk '{print $1}')
+              if [ -n "$CHAT_MODEL" ]; then
+                echo ">>> Creating alias: local-chat -> $CHAT_MODEL"
+                printf 'FROM %s\n' "$CHAT_MODEL" | ollama create local-chat -f -
+                echo ">>> Creating alias: local-code -> $CHAT_MODEL"
+                printf 'FROM %s\n' "$CHAT_MODEL" | ollama create local-code -f -
+              else
+                echo "WARNING: No chat model found for alias creation"
+              fi
+
+              echo ">>> Final model list (with aliases):"
+              ollama list
+
               # Stop background server
               kill $OLLAMA_PID 2>/dev/null || true
               wait $OLLAMA_PID 2>/dev/null || true

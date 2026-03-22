@@ -24,7 +24,7 @@ spec:
             # LiteLLM proxy — all models route through here
             - name: OPENAI_API_KEY
               value: "sk-litellm-master-key"
-            # Chat model — gpt-5.4 via LiteLLM (falls back to gpt-5.1-codex, then qwen3-coder)
+            # Chat model — gpt-5.4 via LiteLLM (falls back to gpt-5.1-codex, then local-chat)
             - name: A0_SET_chat_model_provider
               value: "openai"
             - name: A0_SET_chat_model_name
@@ -33,7 +33,7 @@ spec:
               value: "http://litellm.litellm.svc.cluster.local:4000"
             - name: A0_SET_chat_model_ctx_length
               value: "128000"
-            # Utility model — gpt-5.1-codex via LiteLLM (falls back to qwen3-coder)
+            # Utility model — gpt-5.1-codex via LiteLLM (falls back to local-chat)
             - name: A0_SET_util_model_provider
               value: "openai"
             - name: A0_SET_util_model_name
@@ -49,7 +49,7 @@ spec:
               value: "nomic-embed-text"
             - name: A0_SET_embed_model_api_base
               value: "http://ollama.ollama.svc.cluster.local:11434"
-            # Browser model — gpt-5.4 via LiteLLM (falls back to gpt-5.1-codex, then qwen3-coder)
+            # Browser model — gpt-5.4 via LiteLLM (falls back to gpt-5.1-codex, then local-chat)
             - name: A0_SET_browser_model_provider
               value: "openai"
             - name: A0_SET_browser_model_name
