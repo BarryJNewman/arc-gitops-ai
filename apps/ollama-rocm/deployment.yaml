@@ -161,10 +161,12 @@ spec:
                 | grep -iv 'nomic-embed\|local-chat\|local-code' \
                 | sort -k3 -h -r | head -1 | awk '{print $1}')
               if [ -n "$CHAT_MODEL" ]; then
+                echo "FROM $CHAT_MODEL" > /tmp/Modelfile
                 echo ">>> Creating alias: local-chat -> $CHAT_MODEL"
-                printf 'FROM %s\n' "$CHAT_MODEL" | ollama create local-chat -f -
+                ollama create local-chat -f /tmp/Modelfile
                 echo ">>> Creating alias: local-code -> $CHAT_MODEL"
-                printf 'FROM %s\n' "$CHAT_MODEL" | ollama create local-code -f -
+                ollama create local-code -f /tmp/Modelfile
+                rm -f /tmp/Modelfile
               else
                 echo "WARNING: No chat model found for alias creation"
               fi
