@@ -4,4 +4,3 @@ resources:
   - ../../base
   - ../../ollama
   - ../../kubevirt
-  - ../../azureml
