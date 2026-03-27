@@ -43,59 +43,6 @@ spec:
                 port:
                   number: 8080
 ---
-# kubevirt.darkoverlay.com -> kubevirt-manager (with WebSocket for VNC)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: kubevirt-manager-ingress
-  namespace: kubevirt-manager
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts:
-        - kubevirt.darkoverlay.com
-      secretName: darkoverlay-tls
-  rules:
-    - host: kubevirt.darkoverlay.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: kubevirt-manager
-                port:
-                  number: 8080
----
-# securityonion.darkoverlay.com -> Security Onion SOC (SSL passthrough — self-signed cert)
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: securityonion-ingress
-  namespace: kubevirt-vms
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: securityonion.darkoverlay.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: securityonion-web
-                port:
-                  number: 443
----
 # tak.darkoverlay.com -> TAKServer (TLS passthrough for client cert mTLS)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
