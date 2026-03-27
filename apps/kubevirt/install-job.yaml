@@ -25,7 +25,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kubevirt-install-v1-7-1b
+  name: kubevirt-install-v1-7-1c
   namespace: kubevirt
 spec:
   backoffLimit: 5
@@ -44,6 +44,16 @@ spec:
               set -e
               KUBEVIRT_VERSION="v1.7.1"
               CDI_VERSION="v1.62.0"
+              PROM_OPERATOR_VERSION="v0.75.0"
+
+              echo "=== Installing ServiceMonitor CRD (monitoring.coreos.com) ==="
+              # Required before virt-operator starts. Azure Monitor installs
+              # servicemonitors.azmonitoring.coreos.com which triggers virt-operator's
+              # ServiceMonitor detection on every CRD informer sync, causing a
+              # reinit loop (exit 0). Installing the real monitoring.coreos.com CRD
+              # makes IsServiceMonitorEnabled() return true consistently at startup
+              # so the state never changes and virt-operator stays running.
+              kubectl apply -f "https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$${PROM_OPERATOR_VERSION}/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml"
 
               echo "=== Installing KubeVirt operator $${KUBEVIRT_VERSION} ==="
               kubectl apply -f "https://github.com/kubevirt/kubevirt/releases/download/$${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
